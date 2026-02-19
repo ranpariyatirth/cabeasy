@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "306674807864",
+    "project_id": "persuasive-ego-377212",
+    "storage_bucket": "persuasive-ego-377212.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:306674807864:android:061174ab4fd1fc1d6362cd",
+        "android_client_info": {
+          "package_name": "com.example.cabeasy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFg6vVUdU9agAr9BahpkrEXQ2F-uy6PF0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

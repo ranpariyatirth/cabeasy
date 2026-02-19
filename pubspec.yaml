@@ -1,0 +1,47 @@
+name: cabeasy
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  firebase_core: ^2.15.0
+  firebase_auth: ^4.9.0
+  cloud_firestore: ^4.8.0
+  google_fonts: ^6.1.0
+  webview_flutter: ^4.4.2
+  url_launcher: ^6.1.11
+  # REMOVE flutter_launcher_icons from here
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_native_splash: ^2.3.7
+  flutter_launcher_icons: ^0.13.1  # MOVE it here
+
+# Splash screen configuration
+flutter_native_splash:
+  color: "#FFD700"
+  image: assets/logo.png
+  android: true
+  android_gravity: center
+  ios: true
+  ios_content_mode: center
+
+# App icon configuration - SIMPLIFIED VERSION
+flutter_launcher_icons:
+  image_path: "assets/logo.png"
+  android: true
+  ios: true
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.png
