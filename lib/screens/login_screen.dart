@@ -164,14 +164,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
 
-void _autoSubmitPhone() {
-  String cleanPhone = _phoneController.text.replaceAll(RegExp(r'\D'), '');
-  if (cleanPhone.length == 10 && !_codeSent && !_isLoading) {
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) _sendVerificationCode();
-    });
+  void _autoSubmitPhone() {
+    String cleanPhone = _phoneController.text.replaceAll(RegExp(r'\D'), '');
+    if (cleanPhone.length == 10 && !_codeSent && !_isLoading) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) _sendVerificationCode();
+      });
+    }
   }
-}
 
 
   Future<void> _verifyCode() async {
@@ -347,39 +347,49 @@ void _autoSubmitPhone() {
 
   @override
   Widget build(BuildContext context) {
-    return  GestureDetector(
-      onTap: () {
-        // Close keyboard when tapping anywhere
-        FocusScope.of(context).unfocus();
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFFFAFAFA),
-        body: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 20),
+    return Theme(
+      // Force light theme for login screen
+      data: ThemeData.light().copyWith(
+        colorScheme: ColorScheme.light(
+          primary: const Color(0xFFFFD700),
+          onPrimary: Colors.black87,
+          surface: Colors.white,
+        ),
+      ),
+      child: GestureDetector(
+        onTap: () {
+          // Close keyboard when tapping anywhere
+          FocusScope.of(context).unfocus();
+        },
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 20),
 
-                      // Logo Section with enhanced styling
-                      _buildLogoSection(),
+                        // Logo Section with enhanced styling
+                        _buildLogoSection(),
 
-                      const SizedBox(height: 48),
+                        const SizedBox(height: 48),
 
-                      // Form Section
-                      _buildFormSection(),
+                        // Form Section
+                        _buildFormSection(),
 
-                      const SizedBox(height: 40),
+                        const SizedBox(height: 40),
 
-                      // Footer
-                      _buildFooter(),
-                    ],
+                        // Footer
+                        _buildFooter(),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -598,7 +608,7 @@ void _autoSubmitPhone() {
                     decoration: InputDecoration(
                       hintText: 'Phone number',
                       hintStyle: TextStyle(
-                        color: Colors.grey[400],
+                        color: Colors.black,
                         fontWeight: FontWeight.w500,
                       ),
                       border: InputBorder.none,

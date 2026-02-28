@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -14,7 +15,7 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      print('Error getting user data: $e');
+      debugPrint('Error getting user data: $e');
       return null;
     }
   }
@@ -25,22 +26,26 @@ class AuthService {
       final userData = await getUserData(uid);
       return userData == null; // If no data, user is new
     } catch (e) {
-      print('Error checking if user is new: $e');
+      debugPrint('Error checking if user is new: $e');
       return true; // Assume new user if error
     }
   }
 
   // Phone Authentication - Send SMS
   Future<void> sendVerificationCode(
-      String phoneNumber,
-      Function(String verificationId) onCodeSent,
-      Function(FirebaseAuthException) onVerificationFailed,
-      ) async {
+    String phoneNumber,
+    Function(String verificationId) onCodeSent,
+    Function(FirebaseAuthException) onVerificationFailed,
+  ) async {
     try {
       await _auth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
         verificationCompleted: (PhoneAuthCredential credential) async {
-          await _auth.signInWithCredential(credential);
+          final userCredential = await _auth.signInWithCredential(credential);
+          final user = userCredential.user;
+          if (user != null) {
+            await _createUserDocument(user);
+          }
         },
         verificationFailed: onVerificationFailed,
         codeSent: (String verificationId, int? resendToken) {
@@ -50,7 +55,13 @@ class AuthService {
         timeout: const Duration(seconds: 60),
       );
     } catch (e) {
-      print('Error sending verification code: $e');
+      debugPrint('Error sending verification code: $e');
+      onVerificationFailed(
+        FirebaseAuthException(
+          code: 'send-verification-failed',
+          message: 'Failed to send verification code. Please try again.',
+        ),
+      );
     }
   }
 
@@ -62,8 +73,9 @@ class AuthService {
         smsCode: smsCode,
       );
 
-      UserCredential userCredential =
-      await _auth.signInWithCredential(credential);
+      UserCredential userCredential = await _auth.signInWithCredential(
+        credential,
+      );
 
       if (userCredential.user != null) {
         await _createUserDocument(userCredential.user!);
@@ -71,7 +83,7 @@ class AuthService {
 
       return userCredential.user;
     } catch (e) {
-      print('Error verifying code: $e');
+      debugPrint('Error verifying code: $e');
       return null;
     }
   }
@@ -84,19 +96,24 @@ class AuthService {
         // Only create if user doesn't exist
         await _firestore.collection('users').doc(user.uid).set({
           'uid': user.uid,
+          'name': '',
+          'phone': user.phoneNumber,
           'phoneNumber': user.phoneNumber,
+          'role': 'agent',
+          'isKycVerified': false,
           'isProfileComplete': false, // New field to track profile completion
           'createdAt': FieldValue.serverTimestamp(),
           'lastLogin': FieldValue.serverTimestamp(),
         });
       } else {
         // Update last login time for existing users
-        await _firestore.collection('users').doc(user.uid).update({
+        await _firestore.collection('users').doc(user.uid).set({
+          'phone': user.phoneNumber,
           'lastLogin': FieldValue.serverTimestamp(),
-        });
+        }, SetOptions(merge: true));
       }
     } catch (e) {
-      print('Error creating/updating user document: $e');
+      debugPrint('Error creating/updating user document: $e');
     }
   }
 

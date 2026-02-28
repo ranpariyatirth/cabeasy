@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'home_screen.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart' as app_auth;
+import 'agent/agent_home_screen.dart';
+import 'supplier/supplier_home_screen.dart';
 
 class KycVerificationScreen extends StatefulWidget {
+  const KycVerificationScreen({super.key});
+
   @override
   _KycVerificationScreenState createState() => _KycVerificationScreenState();
 }
@@ -12,7 +17,6 @@ class KycVerificationScreen extends StatefulWidget {
 class _KycVerificationScreenState extends State<KycVerificationScreen> {
   bool _isLoading = true;
   String _userStatus = 'inactive';
-  String? _userPhoneNumber;
 
   @override
   void initState() {
@@ -23,35 +27,37 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
   Future<void> _checkUserStatus() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        _userPhoneNumber = user.phoneNumber;
+      if (user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
-        if (_userPhoneNumber != null) {
-          final doc = await FirebaseFirestore.instance
-              .collection('userDetails')
-              .doc(_userPhoneNumber!)
-              .get();
+      // Read from the canonical `users` collection keyed by UID
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
-          if (doc.exists) {
-            final data = doc.data() as Map<String, dynamic>?;
-            setState(() {
-              _userStatus = data?['status'] ?? 'inactive';
-              _isLoading = false;
-            });
+      if (doc.exists) {
+        final data = doc.data();
+        final status = data?['kycStatus'] ?? 'inactive';
+        setState(() {
+          _userStatus = status;
+          _isLoading = false;
+        });
 
-            // If user is not inactive, go directly to home screen
-            if (_userStatus != 'inactive') {
-              _navigateToHome();
-            }
-          } else {
-            setState(() {
-              _isLoading = false;
-              _userStatus = 'inactive';
-            });
-          }
+        // If already verified or pending, route to home immediately
+        if (status != 'inactive') {
+          _navigateToHome();
         }
+      } else {
+        setState(() {
+          _isLoading = false;
+          _userStatus = 'inactive';
+        });
       }
     } catch (e) {
+      debugPrint('Error checking KYC status: $e');
       setState(() {
         _isLoading = false;
         _userStatus = 'inactive';
@@ -60,9 +66,17 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
   }
 
   void _navigateToHome() {
+    // Read role from AuthProvider to route to the correct role-based home screen
+    final authProvider =
+        Provider.of<app_auth.AuthProvider>(context, listen: false);
+    final role = authProvider.currentUser?.role ?? 'agent';
+
+    Widget destination =
+        role == 'supplier' ? SupplierHomeScreen() : AgentHomeScreen();
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => HomeScreen()),
+      MaterialPageRoute(builder: (context) => destination),
     );
   }
 
@@ -79,36 +93,38 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
 
   Future<void> _markAsSubmitted() async {
     try {
-      if (_userPhoneNumber != null) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
         await FirebaseFirestore.instance
-            .collection('userDetails')
-            .doc(_userPhoneNumber!)
+            .collection('users')
+            .doc(user.uid)
             .update({
-          'status': 'pending',
-          'kycSubmittedAt': DateTime.now().millisecondsSinceEpoch,
+          'kycStatus': 'pending',
+          'kycSubmittedAt': FieldValue.serverTimestamp(),
         });
       }
       _navigateToHome();
     } catch (e) {
-      print('Error updating KYC status: $e');
+      debugPrint('Error updating KYC status: $e');
       _navigateToHome();
     }
   }
 
   Future<void> _skipKyc() async {
     try {
-      if (_userPhoneNumber != null) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
         await FirebaseFirestore.instance
-            .collection('userDetails')
-            .doc(_userPhoneNumber!)
+            .collection('users')
+            .doc(user.uid)
             .update({
-          'status': 'inactive',
-          'kycSkippedAt': DateTime.now().millisecondsSinceEpoch,
+          'kycStatus': 'inactive',
+          'kycSkippedAt': FieldValue.serverTimestamp(),
         });
       }
       _navigateToHome();
     } catch (e) {
-      print('Error skipping KYC: $e');
+      debugPrint('Error skipping KYC: $e');
       _navigateToHome();
     }
   }

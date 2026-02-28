@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(cd \"C:\\\\Users\\\\ASUS\\\\Desktop\\\\cabeasy app\\\\cabeasy\" && flutter analyze lib/screens/agent/agent_home_screen.dart 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\ASUS\\\\Desktop\\\\cabeasy app\\\\cabeasy\" && flutter pub get 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\ASUS\\\\Desktop\\\\cabeasy app\\\\cabeasy\" && flutter analyze lib/screens/chat_screen.dart 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\ASUS\\\\Desktop\\\\cabeasy app\\\\cabeasy\" && flutter analyze lib/providers/chat_provider.dart lib/main.dart 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\ASUS\\\\Desktop\\\\cabeasy app\\\\cabeasy\" && flutter clean 2>&1 && flutter pub get 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\ASUS\\\\Desktop\\\\cabeasy app\\\\cabeasy\" && flutter analyze lib/main.dart 2>&1)",
+      "Bash(grep:*)",
+      "Bash(cd \"C:\\\\Users\\\\ASUS\\\\Desktop\\\\cabeasy app\\\\cabeasy\" && flutter build apk --debug 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\ASUS\\\\Desktop\\\\cabeasy app\\\\cabeasy\" && cmd /c \"rmdir /s /q build\" 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\ASUS\\\\Desktop\\\\cabeasy app\\\\cabeasy\" && flutter analyze lib/screens/login_screen.dart 2>&1)"
+    ]
+  }
+}

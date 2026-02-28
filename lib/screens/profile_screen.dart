@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'home_screen.dart';
+import 'package:provider/provider.dart';
+import '../models/user_model.dart';
+import '../services/firestore_service.dart';
+import '../providers/auth_provider.dart' as app_auth;
+import '../widgets/common/gradient_button.dart';
+import '../widgets/common/app_card.dart';
+import '../constants/app_colors.dart';
 import 'kyc_verification_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -14,7 +20,8 @@ class ProfileScreen extends StatefulWidget {
   _ProfileScreenState createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateMixin {
+class _ProfileScreenState extends State<ProfileScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
@@ -26,57 +33,22 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   final List<String> _selectedDestinations = [];
   String? _userPhoneNumber;
 
-  // Animation controllers
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  // Service options with icons and descriptions
   final List<Map<String, dynamic>> _serviceOptions = [
-    {
-      'name': 'Sightseeing Packages',
-      'icon': Icons.tour_outlined,
-      'color': Color(0xFFFF6B6B),
-    },
-    {
-      'name': 'Hotel Bookings',
-      'icon': Icons.hotel_outlined,
-      'color': Color(0xFF4ECDC4),
-    },
-    {
-      'name': 'Airport Transfers',
-      'icon': Icons.flight_outlined,
-      'color': Color(0xFF95E1D3),
-    },
-    {
-      'name': 'Local Tours',
-      'icon': Icons.location_city_outlined,
-      'color': Color(0xFFF38181),
-    },
-    {
-      'name': 'Adventure Activities',
-      'icon': Icons.landscape_outlined,
-      'color': Color(0xFFAA96DA),
-    },
-    {
-      'name': 'Cultural Experiences',
-      'icon': Icons.temple_hindu_outlined,
-      'color': Color(0xFFFCBF49),
-    },
-    {
-      'name': 'Food Tours',
-      'icon': Icons.restaurant_outlined,
-      'color': Color(0xFFFF9F1C),
-    },
-    {
-      'name': 'Event Management',
-      'icon': Icons.event_outlined,
-      'color': Color(0xFF06FFA5),
-    },
+    {'name': 'Sightseeing Packages', 'icon': Icons.tour_outlined, 'color': Color(0xFFFF6B6B)},
+    {'name': 'Hotel Bookings', 'icon': Icons.hotel_outlined, 'color': Color(0xFF4ECDC4)},
+    {'name': 'Airport Transfers', 'icon': Icons.flight_outlined, 'color': Color(0xFF95E1D3)},
+    {'name': 'Local Tours', 'icon': Icons.location_city_outlined, 'color': Color(0xFFF38181)},
+    {'name': 'Adventure Activities', 'icon': Icons.landscape_outlined, 'color': Color(0xFFAA96DA)},
+    {'name': 'Cultural Experiences', 'icon': Icons.temple_hindu_outlined, 'color': Color(0xFFFCBF49)},
+    {'name': 'Food Tours', 'icon': Icons.restaurant_outlined, 'color': Color(0xFFFF9F1C)},
+    {'name': 'Event Management', 'icon': Icons.event_outlined, 'color': Color(0xFF06FFA5)},
   ];
 
-  // Indian states and major cities
   final List<Map<String, String>> _indianDestinations = [
     {'name': 'Agra, Uttar Pradesh', 'state': 'Uttar Pradesh'},
     {'name': 'Ahmedabad, Gujarat', 'state': 'Gujarat'},
@@ -125,7 +97,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     super.initState();
     _filteredDestinations = List.from(_indianDestinations);
 
-    // Initialize animations
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -138,7 +109,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
     );
-
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
@@ -146,7 +116,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
     _fadeController.forward();
     _slideController.forward();
-
     _loadUserData();
   }
 
@@ -163,57 +132,43 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   Future<void> _loadUserData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        _userPhoneNumber = user.phoneNumber;
+      if (user == null) return;
+      _userPhoneNumber = user.phoneNumber;
 
-        if (_userPhoneNumber != null) {
-          final doc = await FirebaseFirestore.instance
-              .collection('userDetails')
-              .doc(_userPhoneNumber!)
-              .get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
-          if (doc.exists) {
-            final data = doc.data() as Map<String, dynamic>?;
-            setState(() {
-              _nameController.text = data?['name'] ?? '';
-              _emailController.text = data?['email'] ?? user.email ?? '';
-              _selectedUserType = data?['isSupplier'] == true ? 'supplier' : 'b2b';
-
-              if (data?['destinations'] != null) {
-                _selectedDestinations.addAll(List<String>.from(data!['destinations']));
-              }
-
-              if (data?['otherServices'] != null) {
-                _selectedServices.addAll(List<String>.from(data!['otherServices']));
-              }
-            });
-          } else {
-            setState(() {
-              _emailController.text = user.email ?? '';
-            });
-          }
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>?;
+        if (data != null && mounted) {
+          setState(() {
+            _nameController.text = data['name'] ?? '';
+            _selectedUserType = data['role'] == 'supplier' ? 'supplier' : 'b2b';
+            if (data['destinations'] != null) {
+              _selectedDestinations.addAll(List<String>.from(data['destinations']));
+            }
+            if (data['services'] != null) {
+              _selectedServices.addAll(List<String>.from(data['services']));
+            }
+          });
         }
       }
     } catch (e) {
-      print('Error loading user data: $e');
+      debugPrint('Error loading user data: $e');
     }
   }
 
   Future<void> _saveProfile() async {
     if (_nameController.text.trim().isEmpty) {
-      setState(() {
-        _errorMessage = 'Please enter your name';
-      });
+      setState(() => _errorMessage = 'Please enter your name');
       return;
     }
-
     if (_selectedUserType == 'supplier' && _selectedDestinations.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please select at least one destination';
-      });
+      setState(() => _errorMessage = 'Please select at least one destination');
       return;
     }
-
 
     setState(() {
       _isLoading = true;
@@ -221,8 +176,8 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     });
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) {
         setState(() {
           _errorMessage = 'User not authenticated';
           _isLoading = false;
@@ -230,47 +185,46 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         return;
       }
 
-      if (_userPhoneNumber == null) {
-        setState(() {
-          _errorMessage = 'Phone number not available';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      await FirebaseFirestore.instance
-          .collection('userDetails')
-          .doc(_userPhoneNumber!)
-          .set({
-        'name': _nameController.text.trim(),
-        'email': _emailController.text.trim().isEmpty
-            ? '${user.uid}@cabeasy.in'
-            : _emailController.text.trim(),
-        'phone': _userPhoneNumber!,
-        'userId': user.uid,
-        'isSupplier': _selectedUserType == 'supplier',
-        'isAgent': _selectedUserType == 'b2b',
-        'isAdmin': false,
-        'isKycVerified': false,
-        'status': 'inactive',
-        'destinations': _selectedDestinations,
-        'otherServices': _selectedServices,
-        'kycDocs': [],
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      }, SetOptions(merge: true));
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => KycVerificationScreen()),
+      final firestoreService = FirestoreService();
+      final userModel = UserModel(
+        uid: firebaseUser.uid,
+        name: _nameController.text.trim(),
+        phone: firebaseUser.phoneNumber ?? '',
+        role: _selectedUserType == 'supplier' ? 'supplier' : 'agent',
+        isKycVerified: false,
+        createdAt: DateTime.now(),
       );
 
+      await firestoreService.createUser(userModel);
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .set({
+        'destinations': _selectedDestinations,
+        'services': _selectedServices,
+        'isProfileComplete': true,
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        final authProvider =
+        Provider.of<app_auth.AuthProvider>(context, listen: false);
+        await authProvider.refreshUserData();
+      }
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => KycVerificationScreen()),
+        );
+      }
     } catch (e) {
-      print('Firestore Error: $e');
-      setState(() {
-        _errorMessage = 'Failed to save profile. Please try again.';
-        _isLoading = false;
-      });
+      debugPrint('Firestore Error: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to save profile. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -310,26 +264,41 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    _buildLogoSection(),
-                    const SizedBox(height: 48),
-                    _buildFormSection(),
-                    const SizedBox(height: 40),
-                    _buildFooter(),
-                  ],
+    // ─── Force light theme for this entire screen tree ───────────────────────
+    return Theme(
+      data: ThemeData.light().copyWith(
+        scaffoldBackgroundColor: const Color(0xFFFAFAFA),
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFFFFD700),
+          surface: Colors.white,
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAFAFA),
+        body: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      _buildLogoSection(),
+                      const SizedBox(height: 48),
+                      _buildFormSection(),
+                      const SizedBox(height: 40),
+                      _buildFooter(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -353,30 +322,22 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             ],
           ),
           child: Container(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFFFFD700).withOpacity(0.1),
-                    const Color(0xFFFFC400).withOpacity(0.1),
-                  ],
-                ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFFFFD700).withOpacity(0.1),
+                  const Color(0xFFFFC400).withOpacity(0.1),
+                ],
               ),
-              child: Image.network(
-                "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSM12BNQAK4bOiZUJaHGAKbE8wNRwN_EO6INA&s",
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: const Color(0xFFFFD700),
-                    child: const Icon(
-                      Icons.local_taxi,
-                      size: 70,
-                      color: Colors.white,
-                    ),
-                  );
-                },
+            ),
+            child: Image.asset(
+              'assets/logo.png',
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: const Color(0xFFFFD700),
+                child: const Icon(Icons.local_taxi, size: 70, color: Colors.white),
               ),
             ),
           ),
@@ -415,10 +376,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           const SizedBox(height: 8),
           Text(
             'Tell us more about yourself',
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 15, color: Colors.grey[600]),
           ),
           const SizedBox(height: 24),
 
@@ -468,37 +426,28 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           ),
           const SizedBox(height: 24),
 
-          // User Type Selection
           _buildSectionTitle('Select Your Role', Icons.account_circle_outlined),
           const SizedBox(height: 16),
           _buildUserTypeSelection(),
           const SizedBox(height: 24),
 
-          // Destinations for Supplier
           if (_selectedUserType == 'supplier') ...[
             _buildSectionTitle('Select Destinations', Icons.location_on_outlined),
             const SizedBox(height: 12),
             Text(
               'Choose cities where you provide services',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
             const SizedBox(height: 16),
             _buildDestinationSelector(),
             const SizedBox(height: 24),
           ],
 
-          // Services Selection
           _buildSectionTitle('Select Services You Offer', Icons.work_outline),
           const SizedBox(height: 12),
           Text(
             'We\'ll promote these after every booking',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
           ),
           const SizedBox(height: 16),
           _buildServiceCards(),
@@ -523,11 +472,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             color: const Color(0xFFFFD700).withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            color: const Color(0xFFFFD700),
-            size: 20,
-          ),
+          child: Icon(icon, color: const Color(0xFFFFD700), size: 20),
         ),
         const SizedBox(width: 12),
         Text(
@@ -558,29 +503,19 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               icon: Icons.business_center_outlined,
               gradient: LinearGradient(
                 colors: [
-                  _selectedUserType == 'b2b'
-                      ? const Color(0xFFFFD700)
-                      : Colors.grey[300]!,
-                  _selectedUserType == 'b2b'
-                      ? const Color(0xFFFFC400)
-                      : Colors.grey[200]!,
+                  _selectedUserType == 'b2b' ? const Color(0xFFFFD700) : Colors.grey[300]!,
+                  _selectedUserType == 'b2b' ? const Color(0xFFFFC400) : Colors.grey[200]!,
                 ],
               ),
               isSelected: _selectedUserType == 'b2b',
-              onTap: () {
-                setState(() {
-                  _selectedUserType = 'b2b';
-                  _slideController.reset();
-                  _slideController.forward();
-                });
-              },
+              onTap: () => setState(() {
+                _selectedUserType = 'b2b';
+                _slideController.reset();
+                _slideController.forward();
+              }),
             ),
           ),
-          Container(
-            width: 1,
-            height: 80,
-            color: Colors.grey[300],
-          ),
+          Container(width: 1, height: 80, color: Colors.grey[300]),
           Expanded(
             child: _buildEnhancedUserTypeCard(
               title: 'Supplier',
@@ -588,22 +523,16 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               icon: Icons.local_shipping_outlined,
               gradient: LinearGradient(
                 colors: [
-                  _selectedUserType == 'supplier'
-                      ? const Color(0xFFFFD700)
-                      : Colors.grey[300]!,
-                  _selectedUserType == 'supplier'
-                      ? const Color(0xFFFFC400)
-                      : Colors.grey[200]!,
+                  _selectedUserType == 'supplier' ? const Color(0xFFFFD700) : Colors.grey[300]!,
+                  _selectedUserType == 'supplier' ? const Color(0xFFFFC400) : Colors.grey[200]!,
                 ],
               ),
               isSelected: _selectedUserType == 'supplier',
-              onTap: () {
-                setState(() {
-                  _selectedUserType = 'supplier';
-                  _slideController.reset();
-                  _slideController.forward();
-                });
-              },
+              onTap: () => setState(() {
+                _selectedUserType = 'supplier';
+                _slideController.reset();
+                _slideController.forward();
+              }),
             ),
           ),
         ],
@@ -625,9 +554,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
         child: Column(
           children: [
             Container(
@@ -637,20 +564,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 color: isSelected ? null : Colors.grey[200],
                 shape: BoxShape.circle,
                 boxShadow: isSelected
-                    ? [
-                  BoxShadow(
-                    color: const Color(0xFFFFD700).withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
+                    ? [BoxShadow(color: const Color(0xFFFFD700).withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))]
                     : [],
               ),
-              child: Icon(
-                icon,
-                color: isSelected ? Colors.white : Colors.grey[600],
-                size: 28,
-              ),
+              child: Icon(icon, color: isSelected ? Colors.white : Colors.grey[600], size: 28),
             ),
             const SizedBox(height: 12),
             Text(
@@ -665,10 +582,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               textAlign: TextAlign.center,
               maxLines: 2,
             ),
@@ -681,7 +595,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   Widget _buildDestinationSelector() {
     return Column(
       children: [
-        // Selected destinations chips
         if (_selectedDestinations.isNotEmpty) ...[
           Container(
             width: double.infinity,
@@ -713,11 +626,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: Colors.white,
-                      ),
+                      const Icon(Icons.location_on, size: 16, color: Colors.white),
                       const SizedBox(width: 6),
                       Text(
                         destination.split(',')[0],
@@ -730,11 +639,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                       const SizedBox(width: 6),
                       InkWell(
                         onTap: () => _toggleDestination(destination),
-                        child: const Icon(
-                          Icons.close,
-                          size: 16,
-                          color: Colors.white,
-                        ),
+                        child: const Icon(Icons.close, size: 16, color: Colors.white),
                       ),
                     ],
                   ),
@@ -744,8 +649,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           ),
           const SizedBox(height: 16),
         ],
-
-        // Add destination button
         InkWell(
           onTap: _showDestinationPicker,
           borderRadius: BorderRadius.circular(16),
@@ -759,15 +662,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.add_location_outlined,
-                  color: const Color(0xFFFFD700),
-                ),
+                const Icon(Icons.add_location_outlined, color: Color(0xFFFFD700)),
                 const SizedBox(width: 12),
                 Text(
-                  _selectedDestinations.isEmpty
-                      ? 'Select Destinations'
-                      : 'Add More Destinations',
+                  _selectedDestinations.isEmpty ? 'Select Destinations' : 'Add More Destinations',
                   style: const TextStyle(
                     color: Color(0xFFFFD700),
                     fontSize: 16,
@@ -787,179 +685,180 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
-          height: MediaQuery.of(context).size.height * 0.75,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      builder: (context) => Theme(
+        // ── Force light theme inside the bottom sheet too ──────────────────
+        data: ThemeData.light().copyWith(
+          inputDecorationTheme: const InputDecorationTheme(
+            filled: true,
+            fillColor: Color(0xFFFAFAFA),
           ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+        ),
+        child: StatefulBuilder(
+          builder: (context, setModalState) => Container(
+            height: MediaQuery.of(context).size.height * 0.75,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              children: [
+                // Handle bar
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
 
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Select Destinations',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Select Destinations',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                    // Search bar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFAFAFA),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) {
-                          setModalState(() {
-                            _filterDestinations(value);
-                          });
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'Search cities...',
-                          hintStyle: TextStyle(color: Colors.grey[400]),
-                          prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
+                      // ── Search bar — FIXED: explicit white/light fill ───
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAFAFA), // always light grey
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          style: const TextStyle(
+                            color: Colors.black87, // always dark text
+                            fontSize: 16,
+                          ),
+                          onChanged: (value) {
+                            setModalState(() => _filterDestinations(value));
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Search cities...',
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                            // ↓ These three lines are the fix
+                            filled: true,
+                            fillColor: const Color(0xFFFAFAFA),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(height: 1, color: Colors.grey[200]),
-                  ],
+                      const SizedBox(height: 8),
+                      Container(height: 1, color: Colors.grey[200]),
+                    ],
+                  ),
                 ),
-              ),
 
-              Expanded(
-                child: ListView.builder(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemCount: _filteredDestinations.length,
-                  itemBuilder: (context, index) {
-                    final destination = _filteredDestinations[index];
-                    final isSelected = _selectedDestinations.contains(destination['name']);
+                Expanded(
+                  child: ListView.builder(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    itemCount: _filteredDestinations.length,
+                    itemBuilder: (context, index) {
+                      final destination = _filteredDestinations[index];
+                      final isSelected =
+                      _selectedDestinations.contains(destination['name']);
 
-                    return InkWell(
-                      onTap: () {
-                        setState(() {
-                          _toggleDestination(destination['name']!);
-                        });
-                        setModalState(() {});
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 16,
-                          horizontal: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFFFFF9E6)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    destination['name']!.split(',')[0],
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.w500,
-                                      color: Colors.black87,
+                      return InkWell(
+                        onTap: () {
+                          setState(() => _toggleDestination(destination['name']!));
+                          setModalState(() {});
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0xFFFFF9E6) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      destination['name']!.split(',')[0],
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                        color: Colors.black87,
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    destination['state']!,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey[600],
+                                    Text(
+                                      destination['state']!,
+                                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            if (isSelected)
-                              const Icon(
-                                Icons.check_circle,
-                                color: Color(0xFFFFD700),
-                                size: 24,
-                              ),
-                          ],
+                              if (isSelected)
+                                const Icon(Icons.check_circle, color: Color(0xFFFFD700), size: 24),
+                            ],
+                          ),
                         ),
+                      );
+                    },
+                  ),
+                ),
+
+                Container(
+                  width: 200,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, -5),
                       ),
-                    );
-                  },
-                ),
-              ),
-
-              Container(
-                width: 200,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
-                    ),
-                  ],
-                ),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _searchController.clear();
-                    _filterDestinations('');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFD700),
-                    padding: const EdgeInsets.symmetric(vertical:10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    elevation: 0,
+                    ],
                   ),
-                  child: Text(
-                    'Done (${_selectedDestinations.length} selected)',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _searchController.clear();
+                      _filterDestinations('');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFD700),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Done (${_selectedDestinations.length} selected)',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -970,11 +869,14 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      // ── FIX: Clip.none prevents the 23px pixel-cut on cards ──────────────
+      clipBehavior: Clip.none,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 1.1,
+        // ── FIX: was 1.1 — too tight when checkmark row is visible ─────────
+        childAspectRatio: 0.95,
         crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+        mainAxisSpacing: 16, // slightly more vertical gap for shadow room
       ),
       itemCount: _serviceOptions.length,
       itemBuilder: (context, index) {
@@ -988,24 +890,14 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             duration: const Duration(milliseconds: 300),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? const Color(0xFFFFF9E6)
-                  : const Color(0xFFFAFAFA),
+              color: isSelected ? const Color(0xFFFFF9E6) : const Color(0xFFFAFAFA),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected
-                    ? const Color(0xFFFFD700)
-                    : Colors.grey[300]!,
+                color: isSelected ? const Color(0xFFFFD700) : Colors.grey[300]!,
                 width: isSelected ? 2 : 1,
               ),
               boxShadow: isSelected
-                  ? [
-                BoxShadow(
-                  color: const Color(0xFFFFD700).withOpacity(0.2),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ]
+                  ? [BoxShadow(color: const Color(0xFFFFD700).withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4))]
                   : [],
             ),
             child: Column(
@@ -1037,14 +929,12 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (isSelected) ...[
-                  const SizedBox(height: 8),
-                  const Icon(
-                    Icons.check_circle,
-                    color: Color(0xFFFFD700),
-                    size: 20,
-                  ),
-                ],
+                // ── FIX: reserve space always so layout doesn't jump ───────
+                const SizedBox(height: 8),
+                Opacity(
+                  opacity: isSelected ? 1.0 : 0.0,
+                  child: const Icon(Icons.check_circle, color: Color(0xFFFFD700), size: 20),
+                ),
               ],
             ),
           ),
@@ -1072,8 +962,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           ),
         ),
         const SizedBox(height: 8),
+        // ── FIX: wrap in a white Container AND set filled+fillColor ─────────
         Container(
           decoration: BoxDecoration(
+            color: Colors.white, // explicit white background on the container
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.grey[300]!),
           ),
@@ -1082,21 +974,20 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             keyboardType: keyboardType,
             style: const TextStyle(
               fontSize: 16,
-              color: Colors.black87,
+              color: Colors.black87, // always dark text regardless of theme
               fontWeight: FontWeight.w500,
             ),
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: TextStyle(
-                color: Colors.grey[400],
-                fontWeight: FontWeight.w500,
-              ),
+              hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
+              // ↓ filled + fillColor override the dark-mode theme completely
+              filled: true,
+              fillColor: Colors.white,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
               prefixIcon: Icon(icon, color: Colors.grey[600]),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 18,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             ),
           ),
         ),
@@ -1155,11 +1046,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(
-                  Icons.arrow_forward,
-                  color: Colors.black87,
-                  size: 20,
-                ),
+                const Icon(Icons.arrow_forward, color: Colors.black87, size: 20),
               ],
             ),
           ),
@@ -1180,30 +1067,18 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             InkWell(
-              onTap: () {
-                // Navigate to Terms of Service
-              },
+              onTap: () {},
               child: const Text(
                 'Terms of Service',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFFFFD700),
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 13, color: Color(0xFFFFD700), fontWeight: FontWeight.w600),
               ),
             ),
             Text(' & ', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
             InkWell(
-              onTap: () {
-                // Navigate to Privacy Policy
-              },
+              onTap: () {},
               child: const Text(
                 'Privacy Policy',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFFFFD700),
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 13, color: Color(0xFFFFD700), fontWeight: FontWeight.w600),
               ),
             ),
           ],
